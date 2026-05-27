@@ -144,11 +144,39 @@ def shell(
                 console.print("[bold yellow]Goodbye![/bold yellow]")
                 break
 
-            # Intercept USE command
-            if cypher.lower().startswith("use "):
+            # Intercept custom CLI commands
+            cmd_lower = cypher.lower()
+            if cmd_lower.startswith("use "):
                 db_name = cypher[4:].strip()
                 metadata_mgr.set_current_db(db_name)
                 console.print(f"[bold green]Switched to database: '{db_name}'[/bold green]")
+                continue
+            
+            if cmd_lower == "show shards":
+                shards = list(metadata_mgr.shard_manager.shard_configs.keys())
+                console.print(f"[bold cyan]Available Shards:[/bold cyan] {', '.join(shards) if shards else 'None'}")
+                continue
+
+            if cmd_lower.startswith("show databases"):
+                if cmd_lower.startswith("show databases in "):
+                    shard_name = cypher[18:].strip()
+                    dbs = [db for db, s in metadata_mgr.shard_manager.db_to_shard.items() if s == shard_name]
+                    console.print(f"[bold cyan]Databases in {shard_name}:[/bold cyan] {', '.join(dbs) if dbs else 'None'}")
+                else:
+                    dbs = list(metadata_mgr.shard_manager.db_to_shard.keys())
+                    console.print(f"[bold cyan]All Databases:[/bold cyan] {', '.join(dbs) if dbs else 'None'}")
+                continue
+
+            if cmd_lower.startswith("show nodes in "):
+                db_name = cypher[14:].strip()
+                nodes = [lbl for lbl, dbs in metadata_mgr.schema_manager.label_to_db.items() if db_name in dbs]
+                console.print(f"[bold cyan]Nodes (Labels) in {db_name}:[/bold cyan] {', '.join(nodes) if nodes else 'None'}")
+                continue
+
+            if cmd_lower.startswith("show relationships in "):
+                db_name = cypher[22:].strip()
+                rels = [rel for rel, dbs in metadata_mgr.schema_manager.relationship_to_db.items() if db_name in dbs]
+                console.print(f"[bold cyan]Relationships in {db_name}:[/bold cyan] {', '.join(rels) if rels else 'None'}")
                 continue
 
             # Execute the query block

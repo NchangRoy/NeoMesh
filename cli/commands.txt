@@ -1,11 +1,6 @@
-use myNewDatabase
-MATCH (n) DETACH DELETE n
-CREATE (a:Animal {name: "Rex", species: "Dog"})
-CREATE (a:Animal {name: "Whiskers", species: "Cat"})
-use fureh
-MATCH (n) DETACH DELETE n
-CREATE (m:AnotherMagicNode {name: "Rex", magic: "fire"})
-CREATE (m:AnotherMagicNode {name: "Merlin", magic: "ice"})
-use NeoMesh
-MATCH (a:Animal), (m:AnotherMagicNode) WHERE a.name = m.name RETURN a, m
+show shards
+show databases
+show databases in shard_1
+show nodes in myNewDatabase
+show relationships in myNewDatabase
 exit
