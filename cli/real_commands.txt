@@ -1,0 +1,11 @@
+use db_alpha
+MATCH (n) DETACH DELETE n
+CREATE (d:driver {id: 1, name: "Mario"})
+CREATE (d:driver {id: 2, name: "Luigi"})
+use db_beta
+MATCH (n) DETACH DELETE n
+CREATE (c:car {id: 10, ownerId: 1, model: "Kart"})
+CREATE (c:car {id: 11, ownerId: 2, model: "Standard"})
+use NeoMesh
+MATCH (d:driver), (c:car) WHERE d.id = c.ownerId RETURN d, c
+exit

@@ -91,7 +91,18 @@ def process_query(cypher: str, metadata_mgr: MetadataManager, show_plan: bool, m
             display_results(results)
             
     except Exception as e:
-        console.print(f"[bold red]Runtime Execution Error: {e}[/bold red]\n")
+        from distributed_neo4j.planner.logical_planner import LogicalCreateDatabase
+        if isinstance(logical_plan, LogicalCreateDatabase):
+            console.print(f"[bold yellow]Warning: Physical CREATE DATABASE failed on target shard ({e}). Falling back to logical database creation.[/bold yellow]")
+            metadata_mgr.create_database(
+                db_name=logical_plan.db_name,
+                shard_name=logical_plan.shard_name,
+                tables=logical_plan.tables,
+                relations=logical_plan.relations
+            )
+            console.print(f"[bold green]Successfully created logical database '{logical_plan.db_name}' on shard '{logical_plan.shard_name}' and updated local catalog![/bold green]\n")
+        else:
+            console.print(f"[bold red]Runtime Execution Error: {e}[/bold red]\n")
     finally:
         executor.close()
 
@@ -115,11 +126,30 @@ def display_results(results: list):
     console.print()  # Add an extra newline for cleaner spacing
 
 
-@app.command()
-def shell(
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    cli: bool = typer.Option(False, "--cli", help="Run the CLI interface"),
+    web: bool = typer.Option(False, "--web", help="Run the Web interface"),
     mock: bool = typer.Option(True, "--mock/--no-mock", help="Enable/disable mock shard execution"),
     show_plan: bool = typer.Option(False, "--show-plan", help="Display query AST and execution plan tree"),
 ):
+    """
+    Distributed Neo4j Coordinator.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+
+    if web:
+        import uvicorn
+        console.print("[bold green]Starting Distributed Neo4j Web Server on http://127.0.0.1:8000 ...[/bold green]")
+        os.environ["NEO4J_MOCK_EXECUTION"] = "1" if mock else "0"
+        uvicorn.run("distributed_neo4j.web.server:api_app", host="127.0.0.1", port=8000)
+    else:
+        shell(mock, show_plan)
+
+
+def shell(mock: bool, show_plan: bool):
     """
     Launches an interactive distributed Neo4j Cypher shell.
     """
