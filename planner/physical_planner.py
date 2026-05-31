@@ -211,11 +211,28 @@ class PhysicalPlanner:
         left_query = generate_sub_query(left_db, db_vars[left_db], db_rels[left_db], left_return_vars)
         right_query = generate_sub_query(right_db, db_vars[right_db], db_rels[right_db], right_return_vars)
 
-        left_shard = self.metadata_mgr.shard_manager.get_shard_for_db(left_db) or "shard_1"
-        right_shard = self.metadata_mgr.shard_manager.get_shard_for_db(right_db) or "shard_1"
+        def build_union_scan(base_db, query):
+            vars_in_branch = set(db_vars[base_db].keys())
+            if vars_in_branch:
+                dbs_for_branch = set.intersection(*(var_dbs[v] for v in vars_in_branch))
+            else:
+                dbs_for_branch = {base_db}
+            
+            scans = []
+            for db in sorted(list(dbs_for_branch)):
+                shard = self.metadata_mgr.shard_manager.get_shard_for_db(db) or "shard_1"
+                scans.append(RemoteScan(shard, query, database=db))
+            
+            if not scans:
+                shard = self.metadata_mgr.shard_manager.get_shard_for_db(base_db) or "shard_1"
+                return RemoteScan(shard, query, database=base_db)
+            elif len(scans) == 1:
+                return scans[0]
+            else:
+                return Union(scans)
 
-        left_scan = RemoteScan(left_shard, left_query, database=left_db)
-        right_scan = RemoteScan(right_shard, right_query, database=right_db)
+        left_scan = build_union_scan(left_db, left_query)
+        right_scan = build_union_scan(right_db, right_query)
 
         # ── Assemble the plan tree ──
         left_key = f"{left_expr.variable}.{left_expr.property_name}"

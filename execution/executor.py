@@ -31,10 +31,15 @@ class Executor:
 
     async def execute(self, node: PlanNode) -> list[dict]:
         if isinstance(node, RemoteScan):
-            client = self.get_client(node.shard)
-            logger.info(f"Routing query to {node.shard}: {node.query}")
-            # Run blocking driver call in an asyncio thread pool
-            return await asyncio.to_thread(client.execute, node.query, node.database)
+            try:
+                client = self.get_client(node.shard)
+                logger.info(f"Routing query to {node.shard}: {node.query}")
+                # Run blocking driver call in an asyncio thread pool
+                return await asyncio.to_thread(client.execute, node.query, node.database)
+            except Exception as e:
+                logger.warning(f"Failed to execute on shard '{node.shard}': {e}. Returning empty results for this shard.")
+                return []
+
 
         elif isinstance(node, HashJoin):
             # Run both branches concurrently

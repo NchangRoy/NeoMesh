@@ -49,9 +49,17 @@ class ShardClient:
             raise ConnectionError(f"No driver connection established for {self.uri}")
 
         kwargs = {"database": database} if database else {}
-        with self.driver.session(**kwargs) as session:
-            result = session.run(query)
-            return [record.data() for record in result]
+        try:
+            with self.driver.session(**kwargs) as session:
+                result = session.run(query)
+                return [record.data() for record in result]
+        except Exception as e:
+            if "DatabaseNotFound" in str(e):
+                logger.warning(f"Database '{database}' not found on {self.uri}, falling back to default db.")
+                with self.driver.session() as session:
+                    result = session.run(query)
+                    return [record.data() for record in result]
+            raise
 
     def _execute_mock(self, query: str) -> list[dict]:
         query_upper = query.upper()

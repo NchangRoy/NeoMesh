@@ -37,12 +37,12 @@ Vertical splitting occurs when *different types of data* (e.g., `User` nodes and
 
 **How it works:**
 1. **Catalog Validation:** When a query arrives (e.g., `MATCH (u:User)-[:PLACED]->(o:Order)`), the physical planner analyzes the variables.
-2. **Shard Disjointness:** It discovers that `User` exists purely on `social_db` (Shard 1), while `Order` exists purely on `commerce_db` (Shard 2).
-3. **Fragmented Execution Trees:** Because the entities do not overlap on a single database, the query cannot be pushed down to a single shard. The planner breaks the query into localized fragments:
+2. **Database Disjointness:** It discovers that `User` exists purely on `social_db` (which might be on Shard 1), while `Order` exists purely on `commerce_db` (which might be on Shard 2, or even the *same* physical Shard 1).
+3. **Fragmented Execution Trees:** Because the entities do not overlap on a single logical database, the query cannot be pushed down as a single query string. The planner breaks the query into localized fragments:
    - Fragment A: `MATCH (u:User) RETURN u` routed to `social_db`.
    - Fragment B: `MATCH (o:Order) RETURN o` routed to `commerce_db`.
 4. **HashJoin Operator:** The planner constructs an in-memory **`HashJoin`** physical operator.
-5. **Memory Aggregation:** The execution engine executes the fragments concurrently, pulls the raw objects back to the central coordinator node, and performs an in-memory Hash Join to stitch the related entities together before returning the finalized result set.
+5. **Memory Aggregation:** The execution engine executes the fragments concurrently against their respective databases (regardless of which physical shard hosts them), pulls the raw objects back to the central coordinator node, and performs an in-memory Hash Join to stitch the related entities together before returning the finalized result set.
 
 ---
 
